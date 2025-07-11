@@ -42,9 +42,9 @@ function Show-GUI ($lang) {
 
     $label = New-Object System.Windows.Forms.Label
     $label.Text = if ($lang -eq "en") {
-        "This will remove all saved PINs and require setup at next login."
+        "This will remove saved PIN for the current user only."
     } else {
-        "Hierdie aksie verwyder alle gestoor PINs en vereis 'n nuwe opstelling met volgende aanmelding."
+        "Hierdie aksie verwyder slegs die gestoor PIN van die huidige gebruiker."
     }
     $label.AutoSize = $true
     $label.Location = New-Object System.Drawing.Point(30, 20)
@@ -84,45 +84,31 @@ function Show-GUI ($lang) {
             return
         }
 
-# $ngcPath = "$env:SystemRoot\ServiceProfiles\LocalService\AppData\Local\Microsoft\Ngc"
-$ngcPath = "$env:LOCALAPPDATA\Microsoft\Ngc"
+        $userNgcPath = "$env:LOCALAPPDATA\Microsoft\Ngc"
+        $pinExists = $false
 
-        if (-not (Test-Path $ngcPath)) {
-            $statusLabel.Text = if ($lang -eq "en") { "Ngc folder not found. No PIN to remove." } else { "Ngc vouer nie gevind nie. Geen PIN om te verwyder." }
-            return
-        }
-
-        # Check if NgcSvc service is running
-        $ngcService = Get-Service -Name NgcSvc -ErrorAction SilentlyContinue
-        if ($ngcService -and $ngcService.Status -eq 'Running') {
-            $statusLabel.Text = if ($lang -eq "en") { "Stopping NgcSvc service..." } else { "Stop NgcSvc diens..." }
-            Stop-Service -Name NgcSvc -Force -ErrorAction SilentlyContinue
-        }
-
-# Improved PIN detection: check for files in any subfolder of Ngc
-        $hasPin = $false
-        if (Test-Path $ngcPath) {
-            $subDirs = Get-ChildItem -Path $ngcPath -Directory -ErrorAction SilentlyContinue
+        if (Test-Path $userNgcPath) {
+            $subDirs = Get-ChildItem $userNgcPath -Directory -ErrorAction SilentlyContinue
             foreach ($dir in $subDirs) {
-                if (Get-ChildItem -Path $dir.FullName -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Length -gt 0 }) {
-                    $hasPin = $true
+                if (Get-ChildItem $dir.FullName -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Length -gt 0 }) {
+                    $pinExists = $true
                     break
                 }
             }
         }
 
-        if (-not $hasPin) {
-            $statusLabel.Text = if ($lang -eq "en") { "No PIN found or already removed." } else { "PIN is reeds verwyder of nog nie gestel nie." }
+        if (-not $pinExists) {
+            $statusLabel.Text = if ($lang -eq "en") { "No PIN found for the current user." } else { "Geen PIN gevind vir huidige gebruiker nie." }
             return
         }
 
         try {
             Stop-Service -Name NgcSvc -ErrorAction SilentlyContinue
-            takeown /f $ngcPath /r /d Y | Out-Null
-            icacls $ngcPath /grant administrators:F /t /c | Out-Null
-            Remove-Item $ngcPath -Recurse -Force
+            takeown /f $userNgcPath /r /d Y | Out-Null
+            icacls $userNgcPath /grant administrators:F /t /c | Out-Null
+            Remove-Item $userNgcPath -Recurse -Force
 
-            $statusLabel.Text = if ($lang -eq "en") { "✅ PIN successfully removed. Restarting..." } else { "✅ PIN suksesvol verwyder. Herbegin nou..." }
+            $statusLabel.Text = if ($lang -eq "en") { "✅ Current user's PIN removed. Restarting..." } else { "✅ PIN van huidige gebruiker verwyder. Herbegin nou..." }
             Start-Sleep -Seconds 3
             Restart-Computer
         } catch {
@@ -132,16 +118,10 @@ $ngcPath = "$env:LOCALAPPDATA\Microsoft\Ngc"
     })
 
     $cancelButton.Add_Click({ $form.Close() })
-
     [void]$form.ShowDialog()
 }
 
-# 👉 Begin hier: kies taal
+# 👉 Launch the language selector
 $selectedLang = Show-LanguageSelector
-
-# Indien gebruiker nie gekies het nie
-if (-not $selectedLang) {
-    exit
-}
-
+if (-not $selectedLang) { exit }
 Show-GUI -lang $selectedLang
