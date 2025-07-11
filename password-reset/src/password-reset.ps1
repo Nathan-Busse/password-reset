@@ -86,7 +86,19 @@ function Show-GUI ($lang) {
 
         $ngcPath = "$env:LOCALAPPDATA\Microsoft\Ngc"
 
-        if (-not (Test-Path $ngcPath)) {
+        # Improved PIN detection: check for files in any subfolder of Ngc
+        $hasPin = $false
+        if (Test-Path $ngcPath) {
+            $subDirs = Get-ChildItem -Path $ngcPath -Directory -ErrorAction SilentlyContinue
+            foreach ($dir in $subDirs) {
+                if (Get-ChildItem -Path $dir.FullName -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Length -gt 0 }) {
+                    $hasPin = $true
+                    break
+                }
+            }
+        }
+
+        if (-not $hasPin) {
             $statusLabel.Text = if ($lang -eq "en") { "No PIN found or already removed." } else { "PIN is reeds verwyder of nog nie gestel nie." }
             return
         }
