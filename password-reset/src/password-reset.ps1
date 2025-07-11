@@ -26,14 +26,14 @@ function Show-LanguageSelector {
     $langForm.Controls.Add($btnAfrikaans)
 
     $language = $null
-    $btnEnglish.Add_Click({ $language = "en"; $langForm.Close() })
-    $btnAfrikaans.Add_Click({ $language = "af"; $langForm.Close() })
+    $btnEnglish.Add_Click({ $script:language = "en"; $langForm.Close() })
+    $btnAfrikaans.Add_Click({ $script:language = "af"; $langForm.Close() })
 
     [void]$langForm.ShowDialog()
-    return $language
+    return $script:language
 }
 
-function Launch-GUI ($lang) {
+function Show-GUI ($lang) {
     $form = New-Object System.Windows.Forms.Form
     $form.Text = if ($lang -eq "en") { "Windows User PIN Reset" } else { "Windows Gebruiker PIN Herstel" }
     $form.Size = New-Object System.Drawing.Size(440, 220)
@@ -119,4 +119,4 @@ if (-not $selectedLang) {
     exit
 }
 
-Launch-GUI -lang $selectedLang
+Show-GUI -lang $selectedLang
