@@ -84,7 +84,7 @@ function Show-GUI ($lang) {
             return
         }
 
-        $ngcPath = "$env:SystemRoot\ServiceProfiles\LocalService\AppData\Local\Microsoft\Ngc"
+        $ngcPath = "$env:LOCALAPPDATA\Microsoft\Ngc"
 
         if (-not (Test-Path $ngcPath)) {
             $statusLabel.Text = if ($lang -eq "en") { "No PIN found or already removed." } else { "PIN is reeds verwyder of nog nie gestel nie." }
