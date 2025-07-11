@@ -84,9 +84,22 @@ function Show-GUI ($lang) {
             return
         }
 
-        $ngcPath = "$env:LOCALAPPDATA\Microsoft\Ngc"
+# $ngcPath = "$env:SystemRoot\ServiceProfiles\LocalService\AppData\Local\Microsoft\Ngc"
+$ngcPath = "$env:LOCALAPPDATA\Microsoft\Ngc"
 
-        # Improved PIN detection: check for files in any subfolder of Ngc
+        if (-not (Test-Path $ngcPath)) {
+            $statusLabel.Text = if ($lang -eq "en") { "Ngc folder not found. No PIN to remove." } else { "Ngc vouer nie gevind nie. Geen PIN om te verwyder." }
+            return
+        }
+
+        # Check if NgcSvc service is running
+        $ngcService = Get-Service -Name NgcSvc -ErrorAction SilentlyContinue
+        if ($ngcService -and $ngcService.Status -eq 'Running') {
+            $statusLabel.Text = if ($lang -eq "en") { "Stopping NgcSvc service..." } else { "Stop NgcSvc diens..." }
+            Stop-Service -Name NgcSvc -Force -ErrorAction SilentlyContinue
+        }
+
+# Improved PIN detection: check for files in any subfolder of Ngc
         $hasPin = $false
         if (Test-Path $ngcPath) {
             $subDirs = Get-ChildItem -Path $ngcPath -Directory -ErrorAction SilentlyContinue
