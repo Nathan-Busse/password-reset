@@ -36,15 +36,15 @@ function Show-LanguageSelector {
 function Show-GUI ($lang) {
     $form = New-Object System.Windows.Forms.Form
     $form.Text = if ($lang -eq "en") { "Windows User PIN Reset" } else { "Windows Gebruiker PIN Herstel" }
-    $form.Size = New-Object System.Drawing.Size(440, 220)
+    $form.Size = New-Object System.Drawing.Size(440, 240)
     $form.StartPosition = "CenterScreen"
     $form.Topmost = $true
 
     $label = New-Object System.Windows.Forms.Label
     $label.Text = if ($lang -eq "en") {
-        "This will remove saved PIN for the current user only."
+        "This removes the saved PIN for the current user only."
     } else {
-        "Hierdie aksie verwyder slegs die gestoor PIN van die huidige gebruiker."
+        "Hierdie aksie verwyder die PIN vir slegs die huidige gebruiker."
     }
     $label.AutoSize = $true
     $label.Location = New-Object System.Drawing.Point(30, 20)
@@ -84,31 +84,27 @@ function Show-GUI ($lang) {
             return
         }
 
-        $userNgcPath = "$env:LOCALAPPDATA\Microsoft\Ngc"
+        $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        $basePath = "$env:SystemRoot\ServiceProfiles\LocalService\AppData\Local\Microsoft\Ngc"
+        $userPinPath = Join-Path $basePath $sid
         $pinExists = $false
 
-        if (Test-Path $userNgcPath) {
-            $subDirs = Get-ChildItem $userNgcPath -Directory -ErrorAction SilentlyContinue
-            foreach ($dir in $subDirs) {
-                if (Get-ChildItem $dir.FullName -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Length -gt 0 }) {
-                    $pinExists = $true
-                    break
-                }
-            }
+        if (Test-Path $userPinPath) {
+            $pinExists = Get-ChildItem $userPinPath -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Length -gt 0 }
         }
 
         if (-not $pinExists) {
-            $statusLabel.Text = if ($lang -eq "en") { "No PIN found for the current user." } else { "Geen PIN gevind vir huidige gebruiker nie." }
+            $statusLabel.Text = if ($lang -eq "en") { "No PIN found for this user." } else { "Geen PIN gevind vir hierdie gebruiker nie." }
             return
         }
 
         try {
             Stop-Service -Name NgcSvc -ErrorAction SilentlyContinue
-            takeown /f $userNgcPath /r /d Y | Out-Null
-            icacls $userNgcPath /grant administrators:F /t /c | Out-Null
-            Remove-Item $userNgcPath -Recurse -Force
+            takeown /f $userPinPath /r /d Y | Out-Null
+            icacls $userPinPath /grant administrators:F /t /c | Out-Null
+            Remove-Item $userPinPath -Recurse -Force
 
-            $statusLabel.Text = if ($lang -eq "en") { "✅ Current user's PIN removed. Restarting..." } else { "✅ PIN van huidige gebruiker verwyder. Herbegin nou..." }
+            $statusLabel.Text = if ($lang -eq "en") { "✅ User's PIN removed. Restarting..." } else { "✅ PIN verwyder. Herbegin nou..." }
             Start-Sleep -Seconds 3
             Restart-Computer
         } catch {
@@ -121,7 +117,7 @@ function Show-GUI ($lang) {
     [void]$form.ShowDialog()
 }
 
-# 👉 Launch the language selector
+# 🌍 Launch GUI
 $selectedLang = Show-LanguageSelector
 if (-not $selectedLang) { exit }
 Show-GUI -lang $selectedLang
